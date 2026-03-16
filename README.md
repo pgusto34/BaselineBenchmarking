@@ -48,5 +48,5 @@ To clean up the environment after benchmarking, including generated checkpoints 
 
 - Decide which Megatron config settings to keep and which to remove to make life easier.
 - Add interleaved configs via Megatron's virtual-stages argument to allow for 1f1b-interleaved.
-- Megatron ZeroBubble?
-- Improve the DeepSpeed benchmark workflow, possibly by creating a unified training script.
+- Include scripts for DeepSpeed ZeRO-2 and ZeRO-3
+- (if time) Improve the DeepSpeed benchmark workflow, possibly by creating a unified training script
