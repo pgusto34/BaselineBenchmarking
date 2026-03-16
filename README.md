@@ -32,9 +32,9 @@ Use `benchmark_deepspeed.sh` to select which benchmark script to run. If no scri
 
 To clean up the environment after benchmarking, including generated checkpoints and TensorBoard logs, run `cleanup.sh`.
 
-## Current TODO
+## Current TODOs
 
 - Decide which Megatron config settings to keep and which to remove to make life easier.
 - Add interleaved configs via Megatron's virtual-stages argument to allow for 1f1b-interleaved.
-- Evaluate Megatron ZeroBubble support.
+- Megatron ZeroBubble?
 - Improve the DeepSpeed benchmark workflow, possibly by creating a unified training script.
