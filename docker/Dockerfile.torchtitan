@@ -1,0 +1,26 @@
+FROM nvcr.io/nvidia/pytorch:25.04-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PIP_CONSTRAINT=
+
+WORKDIR /workspace
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip setuptools wheel
+
+RUN pip install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu128 --force-reinstall
+
+# Clone and install TorchTitan
+RUN git clone https://github.com/pytorch/torchtitan.git /opt/torchtitan \
+    && cd /opt/torchtitan \
+    && pip install -e .
+
+# HuggingFace datasets for C4 data
+RUN pip install datasets sentencepiece
+
+# Install any additional dependencies
+RUN pip install tensorboard

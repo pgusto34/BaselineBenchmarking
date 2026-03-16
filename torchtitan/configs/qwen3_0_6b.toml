@@ -1,0 +1,25 @@
+[model]
+module = "qwen3"
+config = "qwen3_0_6b"
+hf_assets_path = "/opt/hf_assets/Qwen3-0.6B/"
+repo_id = "Qwen/Qwen3-0.6B"
+
+[training]
+steps = 20
+seq_len = 1024
+global_batch_size = -1
+local_batch_size = 8
+mixed_precision_param = "bfloat16"
+
+[parallelism]
+data_parallel_shard_degree = -1
+pipeline_parallel_degree = 1
+
+[activation_checkpoint]
+mode = "none"
+
+[checkpoint]
+enable = false
+
+[profiling]
+# steps = 5  # uncomment to enable profiling at step 5

@@ -6,10 +6,13 @@ Scripts for easy Megatron and DeepSpeed benchmarking in a Docker environment.
 
 First, run `setup.sh` to initialize the Docker container.
 
+Note: For TorchTitan, run `setup_torchtitan.sh` to initialize the Docker container.
+
 Inside the container:
 
 - Run `benchmark_megatron.sh` to benchmark Megatron.
 - Run `benchmark_deepspeed.sh` to benchmark DeepSpeed.
+- Run `benchmark_torchtitan.sh` to benchmark DeepSpeed.
 
 See the script files to see which arguments to pass to each training script.
 
@@ -27,6 +30,15 @@ Example configs and a template config are provided under there, so you can eithe
 Currently, DeepSpeed benchmarking is done by the existing benchmark scripts under `deepspeed/`.
 
 Use `benchmark_deepspeed.sh` to select which benchmark script to run. If no script is specified, it defaults to `benchmark_single.py`.
+
+## TorchTitan Benchmarking
+TorchTitan defines models inside a model_registry. This benchmarks imports the neccesary torchtitan modules to insert additional models and configs in `torchtitan/custom_configs.py`. Additionally, the training configuration can be defined in .toml files located in `torchtitan/configs/`
+
+Example workflow:
+```bash
+bash setup_torchtitan.sh # use --no-build argument for subsequent runs 
+NGPUS=4 bash ./benchmark_torchtitan.sh qwen3_30b_a3b_mini # run a custom MoE model with 4 GPUs.
+```
 
 ## Cleanup
 
