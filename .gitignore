@@ -1,0 +1,5 @@
+deepspeed/__pycache__/
+megatron/__pycache__/
+tensorboard_logs/
+checkpoints/
+torch_extensions/

@@ -1,0 +1,28 @@
+FROM nvcr.io/nvidia/pytorch:25.04-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+# NVIDIA docs: unset the NGC pip constraint file during installs
+ENV PIP_CONSTRAINT=
+# Common Megatron perf env var
+ENV CUDA_DEVICE_MAX_CONNECTIONS=1
+# Optional: keep JIT-built extensions in a known writable location
+ENV TORCH_EXTENSIONS_DIR=/workspace/torch_extensions
+
+WORKDIR /workspace
+
+# Megatron Setup
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    ninja-build \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install "setuptools<80.0.0,>=77.0.0" "packaging>=24.2" "pybind11"
+
+ARG MEGATRON_TAG=core_v0.16.0
+
+RUN git clone --recursive --branch ${MEGATRON_TAG} \
+    https://github.com/NVIDIA/Megatron-LM.git /opt/Megatron-LM \
+ && cd /opt/Megatron-LM \
+ && git submodule update --init --recursive
+

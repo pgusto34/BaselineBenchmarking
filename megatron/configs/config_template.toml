@@ -1,0 +1,257 @@
+# Megatron TOML template for megatron/run_megatron.py
+#
+# Conventions used in comments:
+# - REQUIRED: must be set for launcher to run.
+# - OPTIONAL: may be omitted.
+# - DEFAULT: value used by launcher when omitted.
+
+[distributed]
+# OPTIONAL, DEFAULT=1
+gpus_per_node = 8
+# OPTIONAL, DEFAULT=1
+num_nodes = 1
+# OPTIONAL, DEFAULT=0
+node_rank = 0
+# OPTIONAL, DEFAULT="localhost"
+master_addr = "localhost"
+# OPTIONAL, DEFAULT=6000
+master_port = 6000
+
+[parallelism]
+# OPTIONAL, DEFAULT=1
+tp_size = 1
+# OPTIONAL, DEFAULT=1
+cp_size = 1
+# OPTIONAL, DEFAULT=1
+pp_size = 1
+# OPTIONAL, DEFAULT=true
+sequence_parallel = true
+
+[model]
+# REQUIRED
+dim = 4096
+# REQUIRED
+n_layers = 32
+# REQUIRED
+n_heads = 32
+# REQUIRED
+vocab_size = 128256
+
+# OPTIONAL, DEFAULT=unset
+# If set and different from n_heads, launcher adds:
+# --group-query-attention --num-query-groups <n_kv_heads>
+n_kv_heads = 8
+
+# OPTIONAL, DEFAULT=unset
+# If omitted, launcher computes LLaMA-style SwiGLU hidden size.
+# ffn_hidden_size = 14336
+
+# OPTIONAL, DEFAULT=500000.0
+rope_theta = 500000.0
+# OPTIONAL, DEFAULT=1.0
+rotary_percent = 1.0
+
+# OPTIONAL, DEFAULT=0.0
+attention_dropout = 0.0
+# OPTIONAL, DEFAULT=0.0
+hidden_dropout = 0.0
+
+# OPTIONAL, DEFAULT=unset
+kv_channels = 128
+# OPTIONAL, DEFAULT=unset
+init_method_std = 0.0134
+# OPTIONAL, DEFAULT=unset
+attention_backend = "fused"
+
+# OPTIONAL, DEFAULT=true
+swiglu = true
+# OPTIONAL, DEFAULT=true
+disable_bias_linear = true
+# OPTIONAL, DEFAULT=true
+untie_embeddings_and_output_weights = true
+# OPTIONAL, DEFAULT=true
+apply_layernorm_1p = true
+
+[training]
+# REQUIRED
+micro_batch_size = 1
+# REQUIRED
+global_batch_size = 128
+# REQUIRED
+seq_length = 8192
+# REQUIRED
+train_iters = 20
+
+# OPTIONAL, DEFAULT=seq_length
+max_position_embeddings = 8192
+
+# OPTIONAL, DEFAULT=1.5e-4
+lr = 0.00015
+# OPTIONAL, DEFAULT=1e-5
+min_lr = 0.00001
+# OPTIONAL, DEFAULT=0.1
+weight_decay = 0.1
+# OPTIONAL, DEFAULT=0.9
+adam_beta1 = 0.9
+# OPTIONAL, DEFAULT=0.95
+adam_beta2 = 0.95
+# OPTIONAL, DEFAULT=1.0
+clip_grad = 1.0
+# OPTIONAL, DEFAULT="cosine"
+lr_decay_style = "cosine"
+
+# OPTIONAL, DEFAULT=unset
+train_samples = 1953125000
+# OPTIONAL, DEFAULT=unset
+lr_decay_samples = 1949218748
+# OPTIONAL, DEFAULT=unset
+lr_warmup_samples = 3906252
+# OPTIONAL, DEFAULT=unset (mutually exclusive with lr_warmup_samples)
+# lr_warmup_iters = 2000
+# OPTIONAL, DEFAULT=unset
+decoupled_lr = 0.0005
+# OPTIONAL, DEFAULT=unset
+decoupled_min_lr = 0.000045
+
+# Training-level logging controls (preferred over [logging], supported directly in launcher)
+# OPTIONAL, DEFAULT=1
+eval_iters = 1
+# OPTIONAL, DEFAULT=100
+eval_interval = 100
+# OPTIONAL, DEFAULT=1
+log_interval = 1
+# OPTIONAL, DEFAULT=1000
+save_interval = 1000
+# OPTIONAL, DEFAULT=60
+distributed_timeout_minutes = 60
+# OPTIONAL, DEFAULT=true
+log_throughput = true
+# OPTIONAL, DEFAULT=unset
+ckpt_format = "torch_dist"
+# OPTIONAL, DEFAULT=false
+profile = false
+# OPTIONAL, used only if profile=true
+profile_step_start = 4
+# OPTIONAL, used only if profile=true
+profile_step_end = 6
+
+# OPTIONAL, DEFAULT=true
+use_distributed_optimizer = true
+# OPTIONAL, DEFAULT=true
+overlap_grad_reduce = true
+# OPTIONAL, DEFAULT=true
+overlap_param_gather = true
+
+# OPTIONAL, DEFAULT=false
+grad_reduce_in_bf16 = true
+# OPTIONAL, DEFAULT=false
+cross_entropy_loss_fusion = true
+# OPTIONAL, DEFAULT=false
+calculate_per_token_loss = true
+# OPTIONAL, DEFAULT=false
+manual_gc = true
+# OPTIONAL, DEFAULT=unset
+empty_unused_memory_level = 1
+# OPTIONAL, DEFAULT=unset
+exit_duration_in_mins = 235
+
+# Activation checkpointing / recompute controls
+# OPTIONAL, DEFAULT=unset
+# recompute_granularity = "full"
+# OPTIONAL, DEFAULT=unset
+# recompute_method = "uniform"
+# OPTIONAL, DEFAULT=unset
+# recompute_num_layers = 1
+# OPTIONAL, DEFAULT=false
+# distribute_saved_activations = false
+# OPTIONAL, DEFAULT=unset
+# String or list for selective recompute, for example:
+# recompute_modules = "core_attn"
+# recompute_modules = ["core_attn", "mlp"]
+
+[precision]
+# OPTIONAL, one of: bf16, fp16, fp8
+# DEFAULT="fp8"
+dtype = "fp8"
+
+# OPTIONAL, used when dtype="fp8"
+# DEFAULT="hybrid"
+fp8_format = "hybrid"
+# OPTIONAL, used when dtype="fp8"
+# DEFAULT=1024
+fp8_amax_history_len = 1024
+# OPTIONAL, used when dtype="fp8"
+# DEFAULT="max"
+fp8_amax_compute_algo = "max"
+
+[data]
+# OPTIONAL, DEFAULT=true
+use_mock_data = true
+
+# OPTIONAL, DEFAULT="99,1,0"
+split = "99,1,0"
+# OPTIONAL, DEFAULT=unset
+data_cache_path = "/workspace/benchmark_cache_llama3_8b_fp8"
+# OPTIONAL, DEFAULT=true
+no_create_attention_mask_in_dataloader = true
+# OPTIONAL, DEFAULT=true
+no_mmap_bin_files = true
+# OPTIONAL, DEFAULT=unset
+num_workers = 1
+
+# OPTIONAL, DEFAULT=unset
+# Mainly relevant in tokenized/tiktoken paths
+tiktoken_pattern = "v2"
+
+# Tokenizer behavior:
+# - If use_mock_data=true:
+#   OPTIONAL tokenizer_type, DEFAULT="NullTokenizer"
+# - If use_mock_data=false:
+#   data_path and tokenizer_model are REQUIRED
+#   tokenizer_type OPTIONAL, DEFAULT="HuggingFaceTokenizer"
+
+# Mock-data mode option (optional):
+# tokenizer_type = "NullTokenizer"
+
+# Real-data mode options:
+# use_mock_data = false
+# data_path = "/workspace/data/my_dataset_text_document"
+# tokenizer_type = "HuggingFaceTokenizer"
+# tokenizer_model = "/workspace/tokenizer"
+
+[logging]
+# Legacy fallback section. Prefer putting these keys under [training].
+# OPTIONAL, DEFAULT=1
+log_interval = 1
+# OPTIONAL, DEFAULT=1
+eval_iters = 1
+# OPTIONAL, DEFAULT=100
+eval_interval = 100
+# OPTIONAL, DEFAULT=1000
+save_interval = 1000
+# OPTIONAL, DEFAULT=60
+distributed_timeout_minutes = 60
+# OPTIONAL, DEFAULT=true
+log_throughput = true
+
+# OPTIONAL, DEFAULT=false
+profile = false
+# OPTIONAL, used only if profile=true
+profile_step_start = 4
+# OPTIONAL, used only if profile=true
+profile_step_end = 6
+
+# OPTIONAL, DEFAULT=unset
+ckpt_format = "torch_dist"
+
+[output]
+# OPTIONAL, DEFAULT=unset
+save = "/workspace/checkpoints/llama3_8b_fp8"
+# OPTIONAL, DEFAULT=unset
+load = "/workspace/checkpoints/llama3_8b_fp8"
+# OPTIONAL, DEFAULT=unset
+tensorboard_dir = "/workspace/tensorboard_logs/llama3_8b_fp8"
+
+# OPTIONAL free-form passthrough args appended to command.
+# DEFAULT=[]
+extra_args = []

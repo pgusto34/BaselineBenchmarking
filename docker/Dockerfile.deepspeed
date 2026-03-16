@@ -1,0 +1,41 @@
+FROM nvcr.io/nvidia/pytorch:25.04-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    libssl-dev \
+    libopenmpi-dev \
+    wget \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
+
+# Transformers stack
+RUN pip install \
+    transformers \
+    accelerate \
+    datasets \
+    safetensors \
+    sentencepiece \
+    einops
+
+# DeepSpeed build flags
+ENV DS_BUILD_OPS=1
+ENV DS_BUILD_TRANSFORMER=1
+ENV DS_BUILD_TRANSFORMER_INFERENCE=1
+ENV DS_BUILD_CCL_COMM=0
+
+# Install DeepSpeed
+RUN pip install --no-cache-dir deepspeed
+RUN pip install mpi4py
+
+# Optional profiling tools
+RUN apt-get update && apt-get install -y \
+    nvidia-cuda-dev \
+    && rm -rf /var/lib/apt/lists/*

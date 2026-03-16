@@ -1,0 +1,50 @@
+[distributed]
+gpus_per_node = 1
+
+[parallelism]
+tp_size = 1
+pp_size = 1
+sequence_parallel = false
+
+[model]
+dim = 8192
+n_layers = 80
+n_heads = 64
+n_kv_heads = 8
+vocab_size = 128256
+multiple_of = 4096
+ffn_dim_multiplier = 1.3
+rope_theta = 500000.0
+swiglu = true
+disable_bias_linear = true
+untie_embeddings_and_output_weights = true
+apply_layernorm_1p = true
+
+[training]
+micro_batch_size = 1
+global_batch_size = 32
+seq_length = 8192
+max_position_embeddings = 8192
+train_iters = 20
+lr = 0.00015
+min_lr = 0.00001
+lr_decay_style = "cosine"
+weight_decay = 0.1
+clip_grad = 1.0
+use_distributed_optimizer = false
+log_interval = 1
+eval_iters = 1
+eval_interval = 10
+save_interval = 1000
+log_throughput = true
+
+[precision]
+dtype = "bf16"
+
+[data]
+use_mock_data = true
+split = "99,1,0"
+
+[output]
+save = "/workspace/checkpoints/llama_70b_min"
+load = "/workspace/checkpoints/llama_70b_min"
