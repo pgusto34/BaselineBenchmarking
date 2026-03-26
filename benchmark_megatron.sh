@@ -3,13 +3,16 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: ./benchmark_megatron <config_name[.toml]>
+Usage: ./benchmark_megatron <config_name[.toml]> [OPTIONS]
 
 Examples:
   ./benchmark_megatron pretrain_debug_single_gpu
-  ./benchmark_megatron pretrain_debug_single_gpu.toml
+  ./benchmark_megatron pretrain_debug_single_gpu.toml --dry-run
   ./benchmark_megatron pretrain_llama3_toml_example
-  ./benchmark_megatron pretrain_llama3_toml_example.toml
+  ./benchmark_megatron pretrain_llama3_toml_example.toml --dry-run
+
+Options:
+  --dry-run    Print the resolved command without executing training
 
 Notes:
   - Run this after entering the container via setup.sh.
@@ -37,4 +40,5 @@ fi
 
 python3 /workspace/megatron/run_megatron.py \
   --config "$CONFIG_PATH" \
-  --megatron-root /opt/Megatron-LM
+  --megatron-root /opt/Megatron-LM \
+  "${@:2}"

@@ -63,11 +63,13 @@ def _load_config(path: Path) -> Dict[str, Any]:
         return tomllib.load(f)
 
 
-def _run_and_report_avg_throughput(cmd: List[str], env: Dict[str, str]) -> None:
+def _run_and_report_avg_throughput(
+    cmd: List[str], env: Dict[str, str], tokens_per_iter: int, num_gpus: int
+) -> None:
     pattern = re.compile(
-        r"throughput per GPU \(TFLOP/s/GPU\):\s*([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)"
+        r"elapsed time per iteration \(ms\):\s*([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)"
     )
-    throughput_values: List[float] = []
+    iter_times_ms: List[float] = []
 
     proc = subprocess.Popen(
         cmd,
@@ -83,20 +85,21 @@ def _run_and_report_avg_throughput(cmd: List[str], env: Dict[str, str]) -> None:
         print(line, end="")
         match = pattern.search(line)
         if match:
-            throughput_values.append(float(match.group(1)))
+            iter_times_ms.append(float(match.group(1)))
 
     return_code = proc.wait()
 
-    if throughput_values:
-        avg_throughput = sum(throughput_values) / len(throughput_values)
+    if iter_times_ms:
+        avg_iter_s = (sum(iter_times_ms) / len(iter_times_ms)) / 1000.0
+        tokens_per_sec = tokens_per_iter / avg_iter_s
+        tokens_per_sec_per_gpu = tokens_per_sec / num_gpus
         print(
-            f"[launcher] Average throughput per GPU across {len(throughput_values)} logged iterations: "
-            f"{avg_throughput:.4f} TFLOP/s/GPU"
+            f"[launcher] Average throughput across {len(iter_times_ms)} logged iterations: "
+            f"{tokens_per_sec:.1f} tokens/s total | {tokens_per_sec_per_gpu:.1f} tokens/s/GPU"
         )
     else:
         print(
-            "[launcher] No throughput lines found. Ensure --log-throughput is enabled and"
-            " log_interval emits training iteration logs."
+            "[launcher] No iteration time lines found in output."
         )
 
     if return_code != 0:
@@ -223,6 +226,8 @@ def build_command(cfg: Dict[str, Any], megatron_root: Path) -> List[str]:
         "--distributed-timeout-minutes",
         str(training.get("distributed_timeout_minutes", logging_cfg.get("distributed_timeout_minutes", 60))),
     ]
+
+    _value_flag(cmd, parallelism, "num_layers_per_virtual_pipeline_stage", "--num-layers-per-virtual-pipeline-stage")
 
     _value_flag(cmd, model, "kv_channels", "--kv-channels")
     _value_flag(cmd, model, "init_method_std", "--init-method-std")
@@ -406,7 +411,12 @@ def main() -> int:
     env.setdefault("CUDA_DEVICE_MAX_CONNECTIONS", "1")
     env["PYTHONPATH"] = f"{args.megatron_root}:{env.get('PYTHONPATH', '')}"
 
-    _run_and_report_avg_throughput(cmd, env)
+    training_cfg = cfg.get("training", {})
+    distributed_cfg = cfg.get("distributed", {})
+    tokens_per_iter = int(training_cfg["global_batch_size"]) * int(training_cfg["seq_length"])
+    num_gpus = int(distributed_cfg.get("gpus_per_node", 1)) * int(distributed_cfg.get("num_nodes", 1))
+
+    _run_and_report_avg_throughput(cmd, env, tokens_per_iter, num_gpus)
     return 0
 
 

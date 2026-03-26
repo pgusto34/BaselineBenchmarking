@@ -3,6 +3,7 @@ gpus_per_node = 2
 
 [parallelism]
 pp_size = 2
+num_layers_per_virtual_pipeline_stage = 4
 
 [model]
 dim = 2048
