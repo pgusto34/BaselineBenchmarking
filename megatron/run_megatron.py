@@ -125,12 +125,40 @@ def build_command(cfg: Dict[str, Any], megatron_root: Path) -> List[str]:
     node_rank = int(distributed.get("node_rank", 0))
     master_addr = str(distributed.get("master_addr", "localhost"))
     master_port = int(distributed.get("master_port", 6000))
+    use_megatron_fsdp = bool(distributed.get("use_megatron_fsdp", False))
+
+    dp_sharding_strategy = distributed.get("data_parallel_sharding_strategy")
+    if dp_sharding_strategy is not None:
+        dp_sharding_strategy = str(dp_sharding_strategy)
+        valid_sharding_strategies = {
+            "no_shard",
+            "optim",
+            "optim_grads",
+            "optim_grads_params",
+        }
+        if dp_sharding_strategy not in valid_sharding_strategies:
+            allowed = ", ".join(sorted(valid_sharding_strategies))
+            raise ValueError(
+                "distributed.data_parallel_sharding_strategy must be one of: "
+                f"{allowed}. Got: {dp_sharding_strategy}"
+            )
+    sharded_dp_enabled = dp_sharding_strategy in {"optim", "optim_grads", "optim_grads_params"}
 
     micro_batch_size = int(_required(training, "micro_batch_size", "training"))
     global_batch_size = int(_required(training, "global_batch_size", "training"))
     seq_length = int(_required(training, "seq_length", "training"))
     train_iters = int(_required(training, "train_iters", "training"))
     use_dist_opt = bool(training.get("use_distributed_optimizer", True))
+    ckpt_format = training.get("ckpt_format", logging_cfg.get("ckpt_format"))
+
+    if use_megatron_fsdp or sharded_dp_enabled:
+        if ckpt_format is None:
+            ckpt_format = "fsdp_dtensor"
+        elif str(ckpt_format) != "fsdp_dtensor":
+            raise ValueError(
+                "Megatron FSDP/sharded DP requires ckpt_format=fsdp_dtensor. "
+                f"Got: {ckpt_format}"
+            )
 
     dtype = str(precision.get("dtype", "fp8")).lower()
     if dtype not in {"bf16", "fp16", "fp8"}:
@@ -284,6 +312,12 @@ def build_command(cfg: Dict[str, Any], megatron_root: Path) -> List[str]:
     if bool(parallelism.get("sequence_parallel", True)):
         cmd.append("--sequence-parallel")
 
+    if use_megatron_fsdp:
+        cmd.append("--use-megatron-fsdp")
+
+    if dp_sharding_strategy is not None:
+        cmd.extend(["--data-parallel-sharding-strategy", dp_sharding_strategy])
+
     if use_dist_opt:
         cmd.append("--use-distributed-optimizer")
     _bool_flag(cmd, bool(training.get("grad_reduce_in_bf16", False)), "--grad-reduce-in-bf16")
@@ -343,10 +377,8 @@ def build_command(cfg: Dict[str, Any], megatron_root: Path) -> List[str]:
 
     _bool_flag(cmd, bool(training.get("log_throughput", logging_cfg.get("log_throughput", True))), "--log-throughput")
 
-    if "ckpt_format" in training and training["ckpt_format"] is not None:
-        cmd.extend(["--ckpt-format", str(training["ckpt_format"])])
-    else:
-        _value_flag(cmd, logging_cfg, "ckpt_format", "--ckpt-format")
+    if ckpt_format is not None:
+        cmd.extend(["--ckpt-format", str(ckpt_format)])
 
     if bool(training.get("profile", logging_cfg.get("profile", False))):
         cmd.append("--profile")
@@ -408,11 +440,29 @@ def main() -> int:
         return 0
 
     env = os.environ.copy()
-    env.setdefault("CUDA_DEVICE_MAX_CONNECTIONS", "1")
+    distributed_cfg = cfg.get("distributed", {})
+    use_megatron_fsdp = bool(distributed_cfg.get("use_megatron_fsdp", False))
+    dp_sharding_strategy = distributed_cfg.get("data_parallel_sharding_strategy")
+    sharded_dp_enabled = dp_sharding_strategy in {"optim", "optim_grads", "optim_grads_params"}
+
+    if use_megatron_fsdp or sharded_dp_enabled:
+        # Megatron FSDP/sharded DP requires this value to be greater than 1.
+        current = env.get("CUDA_DEVICE_MAX_CONNECTIONS")
+        if current is None:
+            env["CUDA_DEVICE_MAX_CONNECTIONS"] = "8"
+        else:
+            try:
+                if int(current) <= 1:
+                    env["CUDA_DEVICE_MAX_CONNECTIONS"] = "8"
+            except ValueError:
+                env["CUDA_DEVICE_MAX_CONNECTIONS"] = "8"
+    else:
+        env.setdefault("CUDA_DEVICE_MAX_CONNECTIONS", "1")
+
+    env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     env["PYTHONPATH"] = f"{args.megatron_root}:{env.get('PYTHONPATH', '')}"
 
     training_cfg = cfg.get("training", {})
-    distributed_cfg = cfg.get("distributed", {})
     tokens_per_iter = int(training_cfg["global_batch_size"]) * int(training_cfg["seq_length"])
     num_gpus = int(distributed_cfg.get("gpus_per_node", 1)) * int(distributed_cfg.get("num_nodes", 1))
 

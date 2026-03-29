@@ -32,13 +32,14 @@
       "warmup_num_steps": 5
     }
   },
-  "fp16": {
-    "enabled": false,
-    "loss_scale": 0,
-    "loss_scale_window": 1000,
-    "initial_scale_power": 16,
-    "hysteresis": 2,
-    "min_loss_scale": 1
+  "bf16": {
+    "enabled": true
+  },
+  "activation_checkpointing": {
+    "partition_activations": true,
+    "contiguous_memory_optimization": true,
+    "cpu_checkpointing": false,
+    "number_checkpoints": 24
   },
   "wall_clock_breakdown": false,
   "tensorboard": {

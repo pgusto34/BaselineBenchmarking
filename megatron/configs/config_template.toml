@@ -17,6 +17,15 @@ master_addr = "localhost"
 # OPTIONAL, DEFAULT=6000
 master_port = 6000
 
+# OPTIONAL, DEFAULT=false
+# Enable Megatron FSDP.
+use_megatron_fsdp = false
+# OPTIONAL, DEFAULT=unset
+# Data parallel sharding strategy.
+# Supported values: "no_shard" (DDP style), "optim" (ZeRO-1),
+# "optim_grads" (ZeRO-2), "optim_grads_params" (ZeRO-3)
+# data_parallel_sharding_strategy = "no_shard"
+
 [parallelism]
 # OPTIONAL, DEFAULT=1
 tp_size = 1
@@ -128,6 +137,7 @@ distributed_timeout_minutes = 60
 log_throughput = true
 # OPTIONAL, DEFAULT=unset
 ckpt_format = "torch_dist"
+# NOTE: For Megatron FSDP or sharded DP, this must be "fsdp_dtensor".
 # OPTIONAL, DEFAULT=false
 profile = false
 # OPTIONAL, used only if profile=true
@@ -243,6 +253,7 @@ profile_step_end = 6
 
 # OPTIONAL, DEFAULT=unset
 ckpt_format = "torch_dist"
+# NOTE: For Megatron FSDP or sharded DP, this must be "fsdp_dtensor".
 
 [output]
 # OPTIONAL, DEFAULT=unset

@@ -1,0 +1,58 @@
+[distributed]
+gpus_per_node = 4
+num_nodes = 1
+node_rank = 0
+master_addr = "localhost"
+master_port = 6000
+use_megatron_fsdp = true
+data_parallel_sharding_strategy = "optim_grads"
+
+[parallelism]
+tp_size = 1
+cp_size = 1
+pp_size = 2
+sequence_parallel = true
+
+[model]
+dim = 512
+n_layers = 8
+n_heads = 32
+n_kv_heads = 8
+vocab_size = 512
+multiple_of = 256
+ffn_dim_multiplier = 1.5
+rope_theta = 500000.0
+swiglu = true
+disable_bias_linear = true
+untie_embeddings_and_output_weights = true
+apply_layernorm_1p = true
+
+[training]
+micro_batch_size = 1
+global_batch_size = 32
+seq_length = 2048
+max_position_embeddings = 2048
+train_iters = 20
+lr = 0.00015
+min_lr = 0.00001
+lr_decay_style = "cosine"
+weight_decay = 0.1
+clip_grad = 1.0
+use_distributed_optimizer = true
+ckpt_format = "fsdp_dtensor"
+
+[precision]
+dtype = "fp8"
+
+[data]
+use_mock_data = true
+split = "99,1,0"
+
+[logging]
+log_interval = 1
+eval_iters = 1
+eval_interval = 10
+save_interval = 1000
+log_throughput = true
+
+extra_args = []

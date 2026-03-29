@@ -20,7 +20,7 @@ import torch
 import torch.distributed as dist
 import deepspeed
 
-from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
+from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B, LLAMA_70B
 
 
 logging.basicConfig(level=logging.INFO)
@@ -181,7 +181,7 @@ def main() -> None:
         "--model-config",
         type=str,
         default="debug",
-        choices=["debug", "1b", "3b", "8b"],
+        choices=["debug", "1b", "3b", "8b", "70b"],
         help="Model configuration to use",
     )
     parser.add_argument(
@@ -217,6 +217,7 @@ def main() -> None:
         "1b": LLAMA_1B,
         "3b": LLAMA_3B,
         "8b": LLAMA_8B,
+        "70b": LLAMA_70B,
     }
     model_args = model_configs.get(args.model_config, LLAMA_DEBUG)
 

@@ -22,7 +22,7 @@ import deepspeed
 from deepspeed.pipe import PipelineModule
 from deepspeed.runtime.pipe import ProcessTopology
 
-from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
+from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B, LLAMA_70B
 
 
 logging.basicConfig(level=logging.INFO)
@@ -158,6 +158,8 @@ def benchmark_training(
     num_iterations: int,
     device: torch.device,
     config_path: Optional[str] = None,
+    num_pipeline_stages: int = 2,
+    num_data_parallel_groups: int = 2,
 ) -> None:
     """
     Run training benchmark with DeepSpeed pipeline parallelism and data parallelism.
@@ -168,6 +170,8 @@ def benchmark_training(
         num_iterations: Number of training iterations
         device: Device to run on
         config_path: Path to DeepSpeed config JSON file. If None, uses default.
+        num_pipeline_stages: Number of pipeline stages (default: 2)
+        num_data_parallel_groups: Number of data parallel groups (default: 2)
     """
     # Initialize distributed training
     deepspeed.init_distributed()
@@ -178,10 +182,9 @@ def benchmark_training(
     logger.info(f"World size: {world_size}, Local rank: {local_rank}")
 
     # Create pipeline model
-    # 2-way pipeline parallelism (2 stages) + 2-way data parallelism (2 GPUs per stage)
-    logger.info("Creating pipeline model...")
+    logger.info(f"Creating pipeline model with pp_degree={num_pipeline_stages}, dp_degree={num_data_parallel_groups}...")
     pipeline_model = create_pipeline_model(
-        model_args, seq_len, device, num_pipeline_stages=2, num_data_parallel_groups=2
+        model_args, seq_len, device, num_pipeline_stages=num_pipeline_stages, num_data_parallel_groups=num_data_parallel_groups
     )
 
     # Load DeepSpeed configuration from file
@@ -275,7 +278,7 @@ def main() -> None:
         "--model-config",
         type=str,
         default="debug",
-        choices=["debug", "1b", "3b", "8b"],
+        choices=["debug", "1b", "3b", "8b", "70b"],
         help="Model configuration to use",
     )
     parser.add_argument(
@@ -302,6 +305,18 @@ def main() -> None:
         default=None,
         help="Path to DeepSpeed config JSON file (default: ds_config_pp_zero1.json)",
     )
+    parser.add_argument(
+        "--pp-degree",
+        type=int,
+        default=2,
+        help="Pipeline parallelism degree (default: 2)",
+    )
+    parser.add_argument(
+        "--dp-degree",
+        type=int,
+        default=2,
+        help="Data parallelism degree (default: 2)",
+    )
 
     args = parser.parse_args()
 
@@ -311,6 +326,7 @@ def main() -> None:
         "1b": LLAMA_1B,
         "3b": LLAMA_3B,
         "8b": LLAMA_8B,
+        "70b": LLAMA_70B,
     }
     model_args = model_configs.get(args.model_config, LLAMA_DEBUG)
 
@@ -334,6 +350,8 @@ def main() -> None:
         num_iterations=args.iterations,
         device=device,
         config_path=args.deepspeed_config,
+        num_pipeline_stages=args.pp_degree,
+        num_data_parallel_groups=args.dp_degree,
     )
 
 

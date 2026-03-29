@@ -56,6 +56,9 @@ if [[ $NO_BUILD -eq 0 ]]; then
   docker build -f "$DOCKERFILE_PATH" -t "$IMAGE_NAME" .
 fi
 
+RESULTS_DIR="${RESULTS_DIR:-$PWD/results}"
+mkdir -p "$RESULTS_DIR"
+
 echo "[setup] Starting container from '$IMAGE_NAME' with --gpus $GPU_SPEC..."
 docker run --rm -it \
   --gpus "$GPU_SPEC" \
@@ -64,6 +67,7 @@ docker run --rm -it \
   --ulimit memlock=-1 \
   --ulimit stack=67108864 \
   -v "$PWD":/workspace \
+  -v "$RESULTS_DIR":/results \
   -w /workspace \
   "$IMAGE_NAME" \
   bash

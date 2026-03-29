@@ -6,3 +6,4 @@ torch_extensions/
 hf_assets/
 __pycache__/
 *.pyc
+results/

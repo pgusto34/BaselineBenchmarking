@@ -24,7 +24,7 @@ from deepspeed.pipe import PipelineModule
 from deepspeed.runtime.pipe import ProcessTopology
 from deepspeed.moe.layer import MoE
 
-from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B
+from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B, LLAMA_70B
 
 
 logging.basicConfig(level=logging.INFO)
@@ -292,6 +292,7 @@ def benchmark_training(
     num_iterations: int,
     device: torch.device,
     config_path: Optional[str] = None,
+    num_pipeline_stages: int = 2,
     num_experts: int = 8,
     ep_size: int = 2,
 ) -> None:
@@ -304,6 +305,7 @@ def benchmark_training(
         num_iterations: Number of training iterations
         device: Device to run on
         config_path: Path to DeepSpeed config JSON file. If None, uses default.
+        num_pipeline_stages: Number of pipeline stages (default: 2)
         num_experts: Total number of experts
         ep_size: Expert parallelism size
     """
@@ -317,13 +319,12 @@ def benchmark_training(
     logger.info(f"MoE configuration: {num_experts} experts, ep_size={ep_size}")
 
     # Create pipeline MoE model
-    # 2-way pipeline parallelism + expert parallelism (ep_size=2)
-    logger.info("Creating pipeline MoE model...")
+    logger.info(f"Creating pipeline MoE model with pp_degree={num_pipeline_stages}...")
     pipeline_model = create_pipeline_moe_model(
         model_args,
         seq_len,
         device,
-        num_pipeline_stages=2,
+        num_pipeline_stages=num_pipeline_stages,
         num_experts=num_experts,
         ep_size=ep_size,
     )
@@ -423,7 +424,7 @@ def main() -> None:
         "--model-config",
         type=str,
         default="debug",
-        choices=["debug", "1b", "3b", "8b"],
+        choices=["debug", "1b", "3b", "8b", "70b"],
         help="Model configuration to use",
     )
     parser.add_argument(
@@ -451,6 +452,12 @@ def main() -> None:
         help="Path to DeepSpeed config JSON file (default: ds_config_pp_ep.json)",
     )
     parser.add_argument(
+        "--pp-degree",
+        type=int,
+        default=2,
+        help="Pipeline parallelism degree (default: 2)",
+    )
+    parser.add_argument(
         "--num-experts",
         type=int,
         default=8,
@@ -471,6 +478,7 @@ def main() -> None:
         "1b": LLAMA_1B,
         "3b": LLAMA_3B,
         "8b": LLAMA_8B,
+        "70b": LLAMA_70B,
     }
     model_args = model_configs.get(args.model_config, LLAMA_DEBUG)
 
@@ -495,6 +503,7 @@ def main() -> None:
         num_iterations=args.iterations,
         device=device,
         config_path=args.deepspeed_config,
+        num_pipeline_stages=args.pp_degree,
         num_experts=args.num_experts,
         ep_size=args.ep_size,
     )
