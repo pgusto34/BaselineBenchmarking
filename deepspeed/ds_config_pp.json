@@ -1,6 +1,6 @@
 {
-  "train_batch_size": 128,
-  "train_micro_batch_size_per_gpu": 8,
+  "train_batch_size": 16,
+  "train_micro_batch_size_per_gpu": 1,
   "gradient_accumulation_steps": 16,
   "gradient_clipping": 1.0,
   "zero_optimization": {
@@ -39,7 +39,7 @@
     "partition_activations": true,
     "contiguous_memory_optimization": true,
     "cpu_checkpointing": false,
-    "number_checkpoints": 80
+    "number_checkpoints": 1
   },
   "wall_clock_breakdown": false,
   "tensorboard": {

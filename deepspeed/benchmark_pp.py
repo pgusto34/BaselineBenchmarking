@@ -20,10 +20,22 @@ from typing import Dict, Any, Optional
 import torch
 import torch.distributed as dist
 import deepspeed
-from deepspeed.pipe import PipelineModule
+from deepspeed.pipe import LayerSpec, PipelineModule
 from deepspeed.runtime.pipe import ProcessTopology
 
-from model import Transformer, ModelArgs, LLAMA_DEBUG, LLAMA_1B, LLAMA_3B, LLAMA_8B, LLAMA_70B
+from model import (
+    Attention,
+    FeedForward,
+    ModelArgs,
+    RMSNorm,
+    TransformerBlock,
+    LLAMA_1B,
+    LLAMA_3B,
+    LLAMA_8B,
+    LLAMA_70B,
+    LLAMA_DEBUG,
+    precompute_freqs_cis,
+)
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -89,25 +101,61 @@ signal.signal(signal.SIGINT, handle_signal)
 signal.signal(signal.SIGTERM, handle_signal)
 
 
-class TransformerBlockWrapper(torch.nn.Module):
-    """
-    Wrapper for TransformerBlock to make it compatible with PipelineModule.
-    
-    PipelineModule expects layers that take a single tensor input, but TransformerBlock
-    requires additional arguments (start_pos, freqs_cis, mask). This wrapper captures
-    those arguments and provides a single-tensor forward interface.
-    """
-    
-    def __init__(self, block, start_pos: int, freqs_cis: torch.Tensor, mask: torch.Tensor):
+class EmbeddingPipe(torch.nn.Module):
+    """Pipeline-compatible token embedding layer."""
+
+    def __init__(self, model_args: ModelArgs):
         super().__init__()
-        self.block = block
-        self.start_pos = start_pos
-        self.freqs_cis = freqs_cis
-        self.mask = mask
-    
+        self.embedding = torch.nn.Embedding(model_args.vocab_size, model_args.dim)
+
+    def forward(self, tokens: torch.Tensor) -> torch.Tensor:
+        return self.embedding(tokens)
+
+
+class TransformerBlockPipe(torch.nn.Module):
+    """Pipeline-compatible transformer block with fixed training-time mask/rope inputs."""
+
+    def __init__(self, layer_id: int, model_args: ModelArgs, seq_len: int):
+        super().__init__()
+        self.block = TransformerBlock(layer_id, model_args)
+        self.start_pos = 0
+
+        freqs_cis = precompute_freqs_cis(
+            model_args.dim // model_args.n_heads,
+            seq_len,
+            model_args.rope_theta,
+        )
+        mask = torch.full((seq_len, seq_len), float("-inf"))
+        mask = torch.triu(mask, diagonal=1)
+        mask = torch.hstack([torch.zeros((seq_len, 0)), mask])
+
+        self.register_buffer("freqs_cis", freqs_cis, persistent=False)
+        self.register_buffer("mask", mask, persistent=False)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass that only takes a single tensor input."""
         return self.block(x, self.start_pos, self.freqs_cis, self.mask)
+
+
+class NormPipe(torch.nn.Module):
+    """Pipeline-compatible RMSNorm layer."""
+
+    def __init__(self, model_args: ModelArgs):
+        super().__init__()
+        self.norm = RMSNorm(model_args.dim, eps=model_args.norm_eps)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.norm(x)
+
+
+class OutputPipe(torch.nn.Module):
+    """Pipeline-compatible LM head."""
+
+    def __init__(self, model_args: ModelArgs):
+        super().__init__()
+        self.output = torch.nn.Linear(model_args.dim, model_args.vocab_size, bias=False)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.output(x).float()
 
 
 def load_deepspeed_config(config_path: Optional[str] = None) -> Dict[str, Any]:
@@ -166,25 +214,14 @@ def create_pipeline_model(
     Returns:
         PipelineModule instance
     """
-    # Create the full transformer model to get the required arguments
-    model = Transformer(model_args, seq_len, device)
-
-    # Extract layers in order for pipeline parallelism
+    # Build layers lazily via LayerSpec so each rank only instantiates its partition.
     layers = []
 
-    # Add embedding layer
-    layers.append(model.tok_embeddings)
-
-    # Add transformer blocks wrapped for pipeline compatibility
-    # TransformerBlock needs start_pos, freqs_cis, and mask, so we wrap them
-    start_pos = 0
-    for layer in model.layers:
-        wrapped_layer = TransformerBlockWrapper(layer, start_pos, model.freqs_cis, model.mask)
-        layers.append(wrapped_layer)
-
-    # Add final norm and output
-    layers.append(model.norm)
-    layers.append(model.output)
+    layers.append(LayerSpec(EmbeddingPipe, model_args))
+    for layer_id in range(model_args.n_layers):
+        layers.append(LayerSpec(TransformerBlockPipe, layer_id, model_args, seq_len))
+    layers.append(LayerSpec(NormPipe, model_args))
+    layers.append(LayerSpec(OutputPipe, model_args))
 
     # Create topology for pipeline + optional data parallelism.
     topology = ProcessTopology(
@@ -370,7 +407,7 @@ def main() -> None:
         parser.add_argument(
             "--seq-len",
             type=int,
-            default=2048,
+            default=128,
             help="Sequence length",
         )
         parser.add_argument(

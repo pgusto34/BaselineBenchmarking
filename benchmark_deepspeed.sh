@@ -17,7 +17,7 @@ Defaults:
 
 Examples:
   ./benchmark_deepspeed.sh
-  ./benchmark_deepspeed.sh benchmark_pp.py --model-config 70b --pp-degree 2
+  ./benchmark_deepspeed.sh benchmark_pp.py --model-config 70b --pp-degree 8
   ./benchmark_deepspeed.sh --script benchmark_pp_dp.py --model-config debug --pp-degree 4 --dp-degree 2
   ./benchmark_deepspeed.sh --script benchmark_pp_ep.py --pp-degree 4 --dp-degree 2
   ./benchmark_deepspeed.sh --script benchmark_pp.py --pp-degree 4 --stats-output ./results/pp_stats.json
