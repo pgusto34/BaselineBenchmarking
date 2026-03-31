@@ -1,0 +1,33 @@
+[model]
+module = "llama3"
+config = "llama3_70b"
+hf_assets_path = "/opt/hf_assets/models--meta-llama--Meta-Llama-3-70B"
+repo_id = "meta-llama/Meta-Llama-3-70B"
+
+[training]
+steps = 25
+seq_len = 1
+global_batch_size = 12
+# Keep local batch at 12 so pipeline microbatch size can match Megatron's micro_batch_size=1
+local_batch_size = 12
+mixed_precision_param = "bfloat16"
+
+[parallelism]
+data_parallel_replicate_degree = 1
+data_parallel_shard_degree = 1
+tensor_parallel_degree = 1
+pipeline_parallel_degree = 6
+pipeline_parallel_schedule = "InterleavedZeroBubble"
+# 12 local samples / 1 microbatch = 12 microbatches, divisible by pp=6
+pipeline_parallel_microbatch_size = 1
+reshard_after_forward = false
+
+[optimizer]
+lr = 0.00015
+weight_decay = 0.1
+
+[activation_checkpoint]
+mode = "full"
+
+[checkpoint]
+enable = false

@@ -5,8 +5,10 @@ IMAGE_NAME="${IMAGE_NAME:-torchtitan-bench}"
 DOCKERFILE_PATH="${DOCKERFILE_PATH:-docker/Dockerfile.torchtitan}"
 GPU_SPEC="${GPU_SPEC:-all}"
 # Path to your local torchtitan and hf_assets on the host
-TORCHTITAN_PATH="${TORCHTITAN_PATH:-/m-coriander/coriander/shubham/moe-scheduling/torchtitan}"
-HF_ASSETS_PATH="${HF_ASSETS_PATH:-/m-coriander/coriander/shubham/moe-scheduling/hf_assets}"
+# TORCHTITAN_PATH="${TORCHTITAN_PATH:-/m-coriander/coriander/shubham/moe-scheduling/torchtitan}"
+# HF_ASSETS_PATH="${HF_ASSETS_PATH:-/m-coriander/coriander/shubham/moe-scheduling/hf_assets}"
+HF_ASSETS_PATH="${HF_ASSETS_PATH:-/m-coriander/coriander/hf/hub}"
+
 
 usage() {
   cat <<'EOF'
@@ -16,7 +18,6 @@ Options:
   --gpu <spec>   GPU selection passed to Docker (default: all)
   --no-build     Skip docker build, only run container
   -h, --help     Show this help
-
 Environment overrides:
   IMAGE_NAME         Docker image tag (default: torchtitan-bench)
   TORCHTITAN_PATH    Host path to torchtitan repo

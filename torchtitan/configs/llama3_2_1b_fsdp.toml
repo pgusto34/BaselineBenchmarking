@@ -1,0 +1,25 @@
+[model]
+module = "llama3"
+config = "llama3_2_1b_fsdp"
+hf_assets_path = "/opt/hf_assets/Llama-3.2-1B"
+repo_id = "meta-llama/Llama-3.2-1B"
+
+[training]
+steps = 20
+seq_len = 1024
+global_batch_size = 32
+local_batch_size = 16
+mixed_precision_param = "bfloat16"
+
+[parallelism]
+data_parallel_replicate_degree = 1
+data_parallel_shard_degree = 2
+tensor_parallel_degree = 1
+pipeline_parallel_degree = 4
+reshard_after_forward = false
+
+[activation_checkpoint]
+mode = "full"
+
+[checkpoint]
+enable = false

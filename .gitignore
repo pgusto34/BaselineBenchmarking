@@ -7,3 +7,4 @@ hf_assets/
 __pycache__/
 *.pyc
 results/
+outputs/

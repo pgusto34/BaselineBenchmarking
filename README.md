@@ -40,6 +40,12 @@ bash setup_torchtitan.sh # use --no-build argument for subsequent runs
 NGPUS=4 bash ./benchmark_torchtitan.sh qwen3_30b_a3b_mini # run a custom MoE model with 4 GPUs.
 ```
 
+Average stats from a run log:
+```bash
+LOG_RANK=1 NGPU=2 ./benchmark_torchtitan.sh llama3_2_1b_dp_ds_like -- --training.steps=50 2>&1 | tee torchtitan_run.log
+./torchtitan_avg_stats.py torchtitan_run.log --skip-steps 5
+```
+
 ## Cleanup
 
 To clean up the environment after benchmarking, including generated checkpoints and TensorBoard logs, run `cleanup.sh`.

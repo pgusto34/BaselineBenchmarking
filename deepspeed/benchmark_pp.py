@@ -31,6 +31,28 @@ logger = logging.getLogger(__name__)
 
 # Global state for cleanup
 _cleanup_done = False
+_last_signal_received: Optional[int] = None
+
+
+def classify_failure(exc: BaseException) -> str:
+    """Classify failure cause to make distributed crash logs easier to triage."""
+    if isinstance(exc, KeyboardInterrupt):
+        return "keyboard_interrupt"
+
+    if isinstance(exc, SystemExit):
+        code = exc.code
+        if isinstance(code, int) and code >= 128:
+            return f"signal_{code - 128}"
+        return "system_exit"
+
+    message = str(exc).lower()
+    if "out of memory" in message or "cublas_status_alloc_failed" in message or "std::bad_alloc" in message:
+        return "oom"
+    if "broken pipe" in message or "tcpstore" in message:
+        return "store_disconnect"
+    if "nccl" in message:
+        return "nccl_error"
+    return "unknown"
 
 
 def cleanup(signum=None, frame=None):
@@ -54,7 +76,10 @@ def cleanup(signum=None, frame=None):
 
 def handle_signal(signum, frame):
     """Handle termination signals by cleaning up and exiting immediately."""
+    global _last_signal_received
+    _last_signal_received = int(signum)
     logger.warning(f"Received signal {signum}; cleaning up and exiting")
+    logger.error(f"ROOT_CAUSE category=signal signal={signum}")
     cleanup(signum=signum, frame=frame)
     raise SystemExit(128 + int(signum))
 
@@ -316,7 +341,14 @@ def benchmark_training(
                     os.fsync(f.fileno())
                 logger.info(f"Wrote benchmark stats to: {output_path}")
 
-    except Exception as e:
+    except BaseException as e:
+        category = classify_failure(e)
+        logger.error(
+            "ROOT_CAUSE category=%s exception_type=%s message=%s",
+            category,
+            type(e).__name__,
+            str(e),
+        )
         logger.error(f"Benchmark failed with error: {e}", exc_info=True)
         raise
     finally:
@@ -338,7 +370,7 @@ def main() -> None:
         parser.add_argument(
             "--seq-len",
             type=int,
-            default=256,
+            default=2048,
             help="Sequence length",
         )
         parser.add_argument(
