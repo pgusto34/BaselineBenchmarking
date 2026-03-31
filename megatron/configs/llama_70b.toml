@@ -1,12 +1,12 @@
 [distributed]
-gpus_per_node = 8
+gpus_per_node = 6
 
 [parallelism]
-pp_size = 8
+pp_size = 6
 
 [model]
 dim = 8192
-n_layers = 80
+n_layers = 60
 n_heads = 64
 n_kv_heads = 8
 vocab_size = 128256
@@ -21,8 +21,8 @@ apply_layernorm_1p = true
 
 [training]
 micro_batch_size = 1
-global_batch_size = 128
-seq_length = 2048
+global_batch_size = 12
+seq_length = 1
 max_position_embeddings = 8192
 train_iters = 25
 lr = 0.00015
@@ -30,18 +30,20 @@ min_lr = 0.00001
 lr_decay_style = "cosine"
 weight_decay = 0.1
 clip_grad = 1.0
-use_distributed_optimizer = true
+use_distributed_optimizer = false
 log_interval = 1
 eval_iters = 1
 eval_interval = 10
 save_interval = 1000
 log_throughput = true
 
-recompute_granularity = "selective"
-recompute_modules = ["core_attn", "mlp"]
+recompute_granularity = "full"
+
+recompute_method="uniform"
+recompute_num_layers=1
 
 [precision]
-dtype = "fp8"
+dtype = "bf16"
 
 [data]
 use_mock_data = true

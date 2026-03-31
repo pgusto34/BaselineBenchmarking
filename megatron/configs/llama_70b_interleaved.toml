@@ -3,7 +3,7 @@ gpus_per_node = 8
 
 [parallelism]
 pp_size = 8
-num_layers_per_virtual_pipeline_stage = 10
+num_layers_per_virtual_pipeline_stage = 5
 
 [model]
 dim = 8192
@@ -38,8 +38,10 @@ eval_interval = 10
 save_interval = 1000
 log_throughput = true
 
-recompute_granularity = "selective"
-recompute_modules = ["core_attn", "mlp"]
+recompute_granularity = "full"
+
+recompute_method="uniform"
+recompute_num_layers=1
 
 [precision]
 dtype = "bf16"
